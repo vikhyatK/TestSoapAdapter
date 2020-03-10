@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<SOAP-ENV:Envelope
+	xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/">
+	<SOAP-ENV:Body>
+	<ns0:UserRsp
+		xmlns:ns0="http://www.fixprotocol.org/FIXML-5-0" UserReqID=" "
+		Username="davivalores" UserStat="1"
+		UserStatText="f91c4990-4f75-11ea-8619-f0921c1762f0" />
+</SOAP-ENV:Body>
+</SOAP-ENV:Envelope>
