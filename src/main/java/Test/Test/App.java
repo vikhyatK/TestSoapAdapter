@@ -1,8 +1,15 @@
 package Test.Test;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.StringReader;
 import java.net.URL;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Scanner;
 
 import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilder;
@@ -39,6 +46,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 public class App {
 
 	private static final String NAMESPACE = "http://www.fixprotocol.org/FIXML-5-0";
+	private static Integer orderId = 0;
 
 	// validate SAX and external XSD
 	public static boolean validateWithExtXSDUsingSAX(String xml, String xsd)
@@ -85,7 +93,7 @@ public class App {
 		}
 	}
 
-	public static Document validateWithIntXSDUsingDOM(String responseXml, String xsdFile)
+	public Document validateWithIntXSDUsingDOM(String responseXml, String xsdFile)
 			throws ParserConfigurationException, IOException, SAXException {
 		try {
 			DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
@@ -115,8 +123,7 @@ public class App {
 			}
 
 			);
-			InputSource inputSource = new InputSource(responseXml);
-			Document document = builder.parse(inputSource);
+			Document document = builder.parse(new InputSource(new StringReader(responseXml)));
 			return document;
 		} catch (ParserConfigurationException pce) {
 			throw pce;
@@ -127,13 +134,14 @@ public class App {
 		}
 	}
 
-	private static void processResults1074(Document document) throws JsonProcessingException {
+	private void processResults1074(Document document) throws JsonProcessingException {
 		NodeList FIXML = document.getElementsByTagNameNS(NAMESPACE, "FIXML");
 		Node fixmlNode = FIXML.item(0);
 		NamedNodeMap attributes = fixmlNode.getAttributes();
 		String xr = attributes.getNamedItem("xr").getNodeValue();
-		int orderId = Integer.parseInt(xr.split("|")[xr.split("|").length - 1]);
+		orderId = Integer.parseInt(xr.split("|")[xr.split("|").length - 1]);
 		System.out.println(String.format("Order id after parsing is : %d", orderId));
+		writeOrderIdToFile();
 
 		NodeList mktDataFullList = document.getElementsByTagNameNS(NAMESPACE, "MktDataFull");
 		if (mktDataFullList.getLength() == 1) {
@@ -156,8 +164,50 @@ public class App {
 		}
 
 	}
+	
+	private Integer getOrderIdStringFromFile() {
+		if (orderId == 0) {
+			File file = new File("F:\\\\Java_stuff\\\\orderid.txt");
+			if(file.exists()) {
+				try (Scanner sc = new Scanner(file)) {
+					if (sc.hasNext()) {
+						orderId = Integer.parseInt(sc.next());
+					}
+				} catch (FileNotFoundException e) {
+					System.out.println("Error occurred file opening the orderid file." + e);
+				}
+			}
+		}
+		return orderId;
+	}
+	
+	private void writeOrderIdToFile() {
+		File file = new File("F:\\\\Java_stuff\\\\orderid.txt");
+		try {
+			file.createNewFile();
+		} catch (IOException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+		FileWriter fw = null;
+		try {
+			fw = new FileWriter(file);
+			System.out.println("Writing order id to file: " + orderId);
+			fw.write("" + orderId);
+		} catch (IOException e) {
+			System.out.println("Error occurred file writing the orderid to file." + e);
+		} finally {
+			try {
+				fw.flush();
+				fw.close();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+	}
 
-	private static void processResults9999(Document document) throws JsonProcessingException {
+	private void processResults9999(Document document) throws JsonProcessingException {
 		NodeList userRsp = document.getElementsByTagNameNS(NAMESPACE, "UserRsp");
 		Node fixmlNode = userRsp.item(0);
 		NamedNodeMap attributes = fixmlNode.getAttributes();
@@ -165,7 +215,7 @@ public class App {
 		System.out.println(String.format("The token recieved in response of Service9999 is: \n%s", userStatText));
 	}
 
-	private static void convertToJsonToSendToKafka(Element mktDataFullElement) throws JsonProcessingException {
+	private void convertToJsonToSendToKafka(Element mktDataFullElement) throws JsonProcessingException {
 		NamedNodeMap hdrAttributes = mktDataFullElement.getElementsByTagNameNS(NAMESPACE, "Hdr").item(0)
 				.getAttributes();
 		NamedNodeMap instrmtAttributes = mktDataFullElement.getElementsByTagNameNS(NAMESPACE, "Instrmt").item(0)
@@ -213,12 +263,71 @@ public class App {
 	}
 
 	public static void main(String args[]) throws Exception {
-		Document document1074 = validateWithIntXSDUsingDOM(App.class.getClassLoader().getResource("response.xml").getFile(),
-				"/wsdl/schemas/FIXML/fixml-marketdata-impl-5-0.xsd");
-		processResults1074(document1074);
+		App app = new App();
+		
+		Map<Integer, String> responseListFor1074 = app.getResponseListFor1074();
+		
+		
+		for(int i = 0; i < 2; i++) {
+			System.out.println("Read from file: " + app.getOrderIdStringFromFile());
+			Document document1074 = app.validateWithIntXSDUsingDOM(responseListFor1074.get(app.getOrderIdStringFromFile()),
+					"/wsdl/schemas/FIXML/fixml-marketdata-impl-5-0.xsd");
+			app.processResults1074(document1074);
+		}
 
-		Document document9999 = validateWithIntXSDUsingDOM(App.class.getClassLoader().getResource("response9999.xml").getFile(),
-				"/wsdl/schemas/FIXML/fixml-components-base-5-0.xsd");
-		processResults9999(document9999);
+//		Document document9999 = app.validateWithIntXSDUsingDOM(App.class.getClassLoader().getResource("response9999.xml").getFile(),
+//				"/wsdl/schemas/FIXML/fixml-components-base-5-0.xsd");
+//		app.processResults9999(document9999);
+	}
+	
+	private Map<Integer, String> getResponseListFor1074() {
+		Map<Integer, String> responseMap = new HashMap<>();
+		responseMap.put(0, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n" + 
+				"<SOAP-ENV:Envelope xmlns:SOAP-ENV=\"http://schemas.xmlsoap.org/soap/envelope/\">\r\n" + 
+				"   <SOAP-ENV:Body>\r\n" + 
+				"      <ns0:FIXML xmlns:ns0=\"http://www.fixprotocol.org/FIXML-5-0\" v=\"5.0\" s=\"20071228\" xr=\"004003-1|004003-2\">\r\n" + 
+				"         <ns0:Batch>\r\n" + 
+				"            <ns0:MktDataFull TrdDt=\"2020-02-14\">\r\n" + 
+				"               <ns0:Hdr SID=\"MEC+\" SSub=\"IB\" OrigSnt=\"2020-02-14T09:58:24.000267\" MdlMsg=\"I am 1\" />\r\n" + 
+				"               <ns0:Instrmt Sym=\"CTCP\" SecTyp=\"PZFJ\" />\r\n" + 
+				"               <ns0:Full Typ=\"3\" Px=\"257.8\" Dt=\"2020-02-14\" Tm=\"09:58:24\" PxDelta=\"0.01\" Txt=\"CTCP\" LowPx=\"257.77\" />\r\n" + 
+				"               <ns0:Info InfoID=\"2.678\" InfoTyp=\"70\" />\r\n" + 
+				"               <ns0:Info InfoID=\"4.826\" InfoTyp=\"219\" />\r\n" + 
+				"            </ns0:MktDataFull>\r\n" + 
+				"            <ns0:MktDataFull TrdDt=\"2020-02-14\">\r\n" + 
+				"               <ns0:Hdr SID=\"MEC+\" SSub=\"IB\" OrigSnt=\"2020-02-14T09:58:24.000268\" MdlMsg=\"I am 2\" />\r\n" + 
+				"               <ns0:Instrmt Sym=\"CTES\" SecTyp=\"PZFJ\" />\r\n" + 
+				"               <ns0:Full Typ=\"3\" Px=\"297.01\" Dt=\"2020-02-14\" Tm=\"09:58:24\" PxDelta=\"0.01\" Txt=\"CTES\" LowPx=\"296.98\" />\r\n" + 
+				"               <ns0:Info InfoID=\"5.141\" InfoTyp=\"70\" />\r\n" + 
+				"               <ns0:Info InfoID=\"5.369\" InfoTyp=\"219\" />\r\n" + 
+				"            </ns0:MktDataFull>\r\n" + 
+				"         </ns0:Batch>\r\n" + 
+				"      </ns0:FIXML>\r\n" + 
+				"   </SOAP-ENV:Body>\r\n" + 
+				"</SOAP-ENV:Envelope>");
+		responseMap.put(2, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n" + 
+				"<SOAP-ENV:Envelope xmlns:SOAP-ENV=\"http://schemas.xmlsoap.org/soap/envelope/\">\r\n" + 
+				"   <SOAP-ENV:Body>\r\n" + 
+				"      <ns0:FIXML xmlns:ns0=\"http://www.fixprotocol.org/FIXML-5-0\" v=\"5.0\" s=\"20071228\" xr=\"004003-3|004003-4\">\r\n" + 
+				"         <ns0:Batch>\r\n" + 
+				"            <ns0:MktDataFull TrdDt=\"2020-02-14\">\r\n" + 
+				"               <ns0:Hdr SID=\"MEC+\" SSub=\"IB\" OrigSnt=\"2020-02-14T09:58:24.000267\" MdlMsg=\"I am 3\" />\r\n" + 
+				"               <ns0:Instrmt Sym=\"CTCP\" SecTyp=\"PZFJ\" />\r\n" + 
+				"               <ns0:Full Typ=\"3\" Px=\"257.8\" Dt=\"2020-02-14\" Tm=\"09:58:24\" PxDelta=\"0.01\" Txt=\"CTCP\" LowPx=\"257.77\" />\r\n" + 
+				"               <ns0:Info InfoID=\"2.678\" InfoTyp=\"70\" />\r\n" + 
+				"               <ns0:Info InfoID=\"4.826\" InfoTyp=\"219\" />\r\n" + 
+				"            </ns0:MktDataFull>\r\n" + 
+				"            <ns0:MktDataFull TrdDt=\"2020-02-14\">\r\n" + 
+				"               <ns0:Hdr SID=\"MEC+\" SSub=\"IB\" OrigSnt=\"2020-02-14T09:58:24.000268\" MdlMsg=\"I am 4\" />\r\n" + 
+				"               <ns0:Instrmt Sym=\"CTES\" SecTyp=\"PZFJ\" />\r\n" + 
+				"               <ns0:Full Typ=\"3\" Px=\"297.01\" Dt=\"2020-02-14\" Tm=\"09:58:24\" PxDelta=\"0.01\" Txt=\"CTES\" LowPx=\"296.98\" />\r\n" + 
+				"               <ns0:Info InfoID=\"5.141\" InfoTyp=\"70\" />\r\n" + 
+				"               <ns0:Info InfoID=\"5.369\" InfoTyp=\"219\" />\r\n" + 
+				"            </ns0:MktDataFull>\r\n" + 
+				"         </ns0:Batch>\r\n" + 
+				"      </ns0:FIXML>\r\n" + 
+				"   </SOAP-ENV:Body>\r\n" + 
+				"</SOAP-ENV:Envelope>");
+		return responseMap;
 	}
 }
