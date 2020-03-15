@@ -270,14 +270,25 @@ public class App {
 		
 		for(int i = 0; i < 2; i++) {
 			System.out.println("Read from file: " + app.getOrderIdStringFromFile());
-			Document document1074 = app.validateWithIntXSDUsingDOM(responseListFor1074.get(app.getOrderIdStringFromFile()),
-					"/wsdl/schemas/FIXML/fixml-marketdata-impl-5-0.xsd");
-			app.processResults1074(document1074);
+			if(responseListFor1074.get(app.getOrderIdStringFromFile()) != null) {
+				Document document1074 = app.validateWithIntXSDUsingDOM(responseListFor1074.get(app.getOrderIdStringFromFile()),
+						"/wsdl/schemas/FIXML/fixml-marketdata-impl-5-0.xsd");
+				app.processResults1074(document1074);
+			}
 		}
 
-//		Document document9999 = app.validateWithIntXSDUsingDOM(App.class.getClassLoader().getResource("response9999.xml").getFile(),
-//				"/wsdl/schemas/FIXML/fixml-components-base-5-0.xsd");
-//		app.processResults9999(document9999);
+		Document document9999 = app.validateWithIntXSDUsingDOM("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n" + 
+				"<SOAP-ENV:Envelope\r\n" + 
+				"	xmlns:SOAP-ENV=\"http://schemas.xmlsoap.org/soap/envelope/\">\r\n" + 
+				"	<SOAP-ENV:Body>\r\n" + 
+				"	<ns0:UserRsp\r\n" + 
+				"		xmlns:ns0=\"http://www.fixprotocol.org/FIXML-5-0\" UserReqID=\" \"\r\n" + 
+				"		Username=\"davivalores\" UserStat=\"1\"\r\n" + 
+				"		UserStatText=\"f91c4990-4f75-11ea-8619-f0921c1762f0\" />\r\n" + 
+				"</SOAP-ENV:Body>\r\n" + 
+				"</SOAP-ENV:Envelope>",
+				"/wsdl/schemas/FIXML/fixml-components-base-5-0.xsd");
+		app.processResults9999(document9999);
 	}
 	
 	private Map<Integer, String> getResponseListFor1074() {
